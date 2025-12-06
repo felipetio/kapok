@@ -9,6 +9,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from app.viewsets import (
     CommunityViewSet,
     LandViewSet,
+    MembershipViewSet,
+    OrganizationViewSet,
     UserProfileViewSet,
     UserRegistrationViewSet,
     VouchingConfigViewSet,
@@ -23,6 +25,8 @@ router.register(r"auth/register", UserRegistrationViewSet, basename="register")
 router.register(r"users", UserProfileViewSet, basename="user")
 router.register(r"vouching", VouchingViewSet, basename="vouching")
 router.register(r"vouching-config", VouchingConfigViewSet, basename="vouching-config")
+router.register(r"organizations", OrganizationViewSet, basename="organization")
+router.register(r"memberships", MembershipViewSet, basename="membership")
 
 urlpatterns = [
     path("", include("app.urls")),

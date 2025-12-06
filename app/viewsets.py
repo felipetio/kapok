@@ -2,18 +2,21 @@ from django.db import models
 from django.db.models import Count, F
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.filters import CommunityFilter, LandFilter
-from app.models import Community, IndigenousUser, Land, Vouching, VouchingConfig
+from app.models import Community, IndigenousUser, Land, Membership, Organization, Vouching, VouchingConfig
+from app.permissions import IsVerifiedOrInstitutional
 from app.serializers import (
     CommunitySerializer,
     IndigenousUserSerializer,
     LandSerializer,
+    MembershipSerializer,
+    OrganizationSerializer,
     UserRegistrationSerializer,
     VouchingConfigSerializer,
     VouchingResponseSerializer,
@@ -300,3 +303,97 @@ class VouchingConfigViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VouchingConfigSerializer
     permission_classes = [IsAuthenticated]
     queryset = VouchingConfig.objects.select_related("land").all()
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List organizations",
+        description="List all active organizations (VERIFIED+ users see all statuses).",
+        tags=["Organizations"],
+    ),
+    create=extend_schema(
+        summary="Create organization",
+        description="Create new organization (requires VERIFIED or INSTITUTIONAL).",
+        tags=["Organizations"],
+    ),
+    retrieve=extend_schema(
+        summary="Get organization",
+        description="Get organization details.",
+        tags=["Organizations"],
+    ),
+    update=extend_schema(
+        summary="Update organization",
+        description="Update organization (creator or admin only).",
+        tags=["Organizations"],
+    ),
+    partial_update=extend_schema(
+        summary="Partially update organization",
+        description="Partially update organization (creator or admin only).",
+        tags=["Organizations"],
+    ),
+)
+class OrganizationViewSet(viewsets.ModelViewSet):
+    """Organization management."""
+
+    serializer_class = OrganizationSerializer
+    permission_classes = [IsVerifiedOrInstitutional]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        """Allow unauthenticated read access, require verification for write."""
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [IsVerifiedOrInstitutional()]
+
+    def get_queryset(self):
+        """Return organizations with member counts."""
+        queryset = Organization.objects.prefetch_related("lands", "memberships").annotate(
+            members_count=models.Count("memberships", distinct=True)
+        )
+
+        # Public sees only ACTIVE organizations
+        user = self.request.user
+        if not user.is_authenticated:
+            return queryset.filter(status="ACTIVE")
+
+        # Authenticated VERIFIED+ users see all
+        return queryset.order_by("-created_at")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List memberships",
+        description="List memberships (filtered by organization or user).",
+        tags=["Memberships"],
+    ),
+    create=extend_schema(
+        summary="Add member",
+        description="Add member to organization (COORDINATOR/PRESIDENT only).",
+        tags=["Memberships"],
+    ),
+    retrieve=extend_schema(
+        summary="Get membership",
+        description="Get membership details.",
+        tags=["Memberships"],
+    ),
+    update=extend_schema(
+        summary="Update membership",
+        description="Update member role (PRESIDENT only).",
+        tags=["Memberships"],
+    ),
+    destroy=extend_schema(
+        summary="Remove member",
+        description="Remove member from organization (COORDINATOR/PRESIDENT only).",
+        tags=["Memberships"],
+    ),
+)
+class MembershipViewSet(viewsets.ModelViewSet):
+    """Membership management."""
+
+    serializer_class = MembershipSerializer
+    permission_classes = [IsVerifiedOrInstitutional]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        """Return memberships with optimized queries."""
+        return Membership.objects.select_related("organization", "user__user", "user__land").order_by("-joined_at")
