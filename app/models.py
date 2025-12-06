@@ -260,3 +260,87 @@ class Vouching(models.Model):
         # Auto-promote if threshold met
         if approved_count >= config.min_validators:
             self.requester.promote_to_verified()
+
+
+class Organization(models.Model):
+    """Indigenous organization (association, federation, cooperative, etc.)."""
+
+    TYPE_CHOICES = (
+        ("ASSOCIATION", "Association"),
+        ("FEDERATION", "Federation"),
+        ("COOPERATIVE", "Cooperative"),
+        ("OTHER", "Other"),
+    )
+    STATUS_CHOICES = (
+        ("PENDING", "Pending Approval"),
+        ("ACTIVE", "Active"),
+        ("INACTIVE", "Inactive"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    lands = models.ManyToManyField(Land, related_name="organizations", blank=True)
+    description = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    registration_number = models.CharField(max_length=50, blank=True, help_text="CNPJ or other registration")
+    created_by = models.ForeignKey(IndigenousUser, on_delete=models.PROTECT, related_name="organizations_created")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Organization"
+        verbose_name_plural = "Organizations"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        """Auto-generate slug from name."""
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
+class Membership(models.Model):
+    """Membership of IndigenousUser in Organization."""
+
+    ROLE_CHOICES = (
+        ("MEMBER", "Member"),
+        ("COORDINATOR", "Coordinator"),
+        ("PRESIDENT", "President"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(IndigenousUser, on_delete=models.CASCADE, related_name="memberships")
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="MEMBER")
+    joined_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Membership"
+        verbose_name_plural = "Memberships"
+        unique_together = [["organization", "user"]]
+        indexes = [
+            models.Index(fields=["organization", "role"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.organization.name} ({self.role})"
+
+    def clean(self):
+        """Validate membership constraints."""
+        if self.user.verification_tier == "PENDING":
+            raise ValidationError("User must be at least VERIFIED to join an organization.")
+
+    def save(self, *args, **kwargs):
+        """Auto-promote PRESIDENT to INSTITUTIONAL."""
+        super().save(*args, **kwargs)
+        # Auto-promote PRESIDENT to INSTITUTIONAL tier
+        if self.role == "PRESIDENT" and self.user.verification_tier == "VERIFIED":
+            self.user.promote_to_institutional()

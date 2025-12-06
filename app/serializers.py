@@ -5,7 +5,19 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
+from app.models import (
+    Biome,
+    Community,
+    Country,
+    IndigenousUser,
+    Land,
+    Membership,
+    Municipality,
+    Organization,
+    State,
+    Vouching,
+    VouchingConfig,
+)
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -281,3 +293,81 @@ class VouchingResponseSerializer(serializers.Serializer):
 
     approve = serializers.BooleanField(required=True)
     response_message = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    """Serializer for Organization."""
+
+    lands = LandSerializer(many=True, read_only=True)
+    lands_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Land.objects.all(), source="lands", many=True, write_only=True, required=False
+    )
+    created_by = IndigenousUserSerializer(read_only=True)
+    type_display = serializers.CharField(source="get_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    members_count = serializers.IntegerField(read_only=True, required=False)
+
+    class Meta:
+        model = Organization
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "type",
+            "type_display",
+            "status",
+            "status_display",
+            "lands",
+            "lands_ids",
+            "description",
+            "website",
+            "email",
+            "phone",
+            "registration_number",
+            "created_by",
+            "members_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "slug", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        """Create organization with created_by from context."""
+        validated_data["created_by"] = self.context["request"].user.indigenous_profile
+        return super().create(validated_data)
+
+
+class MembershipSerializer(serializers.ModelSerializer):
+    """Serializer for Membership."""
+
+    organization = OrganizationSerializer(read_only=True)
+    organization_id = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(), source="organization", write_only=True
+    )
+    user = IndigenousUserSerializer(read_only=True)
+    user_id = serializers.PrimaryKeyRelatedField(queryset=IndigenousUser.objects.all(), source="user", write_only=True)
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+
+    class Meta:
+        model = Membership
+        fields = [
+            "id",
+            "organization",
+            "organization_id",
+            "user",
+            "user_id",
+            "role",
+            "role_display",
+            "joined_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "joined_at", "updated_at"]
+
+    def validate(self, attrs):
+        """Validate membership constraints."""
+        user = attrs["user"]
+
+        if user.verification_tier == "PENDING":
+            raise ValidationError({"user_id": "User must be at least VERIFIED to join an organization."})
+
+        return attrs
