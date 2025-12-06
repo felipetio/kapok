@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Biome, Community, Country, Land, Municipality, State
+from .models import Biome, Community, Country, IndigenousUser, Land, Municipality, State
 
 
 @admin.register(Country)
@@ -87,3 +87,35 @@ class CommunityAdmin(admin.ModelAdmin):
     @admin.display(description="Lands Count")
     def lands_count(self, obj):
         return obj.lands.count()
+
+
+@admin.register(IndigenousUser)
+class IndigenousUserAdmin(admin.ModelAdmin):
+    list_display = (
+        "full_name",
+        "username",
+        "email",
+        "land",
+        "verification_tier",
+        "created_at",
+    )
+    list_filter = ("verification_tier", "land__category")
+    search_fields = ("full_name", "user__username", "user__email", "phone")
+    readonly_fields = ("created_at", "updated_at")
+    autocomplete_fields = ("land",)
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("User Account", {"fields": ("user",)}),
+        ("Profile Information", {"fields": ("full_name", "phone", "land")}),
+        ("Verification", {"fields": ("verification_tier",)}),
+        ("Metadata", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="Username")
+    def username(self, obj):
+        return obj.user.username
+
+    @admin.display(description="Email")
+    def email(self, obj):
+        return obj.user.email

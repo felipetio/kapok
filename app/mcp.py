@@ -12,7 +12,6 @@ from typing import Literal
 from django.conf import settings
 
 import httpx
-
 from mcp_server import mcp_server
 
 logger = logging.getLogger("kapok.mcp")

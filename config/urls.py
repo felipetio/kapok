@@ -4,19 +4,25 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from app.viewsets import CommunityViewSet, LandViewSet
+from app.viewsets import CommunityViewSet, LandViewSet, UserProfileViewSet, UserRegistrationViewSet
 
 # API Router
 router = DefaultRouter()
 router.register(r"lands", LandViewSet, basename="land")
 router.register(r"communities", CommunityViewSet, basename="community")
+router.register(r"auth/register", UserRegistrationViewSet, basename="register")
+router.register(r"users", UserProfileViewSet, basename="user")
 
 urlpatterns = [
     path("", include("app.urls")),
     path("admin/", admin.site.urls),
     # API endpoints
     path("api/v1/", include(router.urls)),
+    # JWT authentication endpoints
+    path("api/v1/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # API documentation
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

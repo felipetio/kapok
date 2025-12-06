@@ -1,9 +1,11 @@
 """Factory classes for creating test data using factory-boy."""
 
+from django.contrib.auth.models import User
+
 import factory
 from factory.django import DjangoModelFactory
 
-from app.models import Biome, Community, Country, Land, Municipality, State
+from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State
 
 
 class CountryFactory(DjangoModelFactory):
@@ -82,3 +84,27 @@ class LandFactory(DjangoModelFactory):
         if extracted:
             for community in extracted:
                 self.communities.add(community)
+
+
+class UserFactory(DjangoModelFactory):
+    """Factory for creating User instances."""
+
+    class Meta:
+        model = User
+
+    username = factory.Faker("user_name")
+    email = factory.Faker("email")
+    password = factory.PostGenerationMethodCall("set_password", "testpass123")
+
+
+class IndigenousUserFactory(DjangoModelFactory):
+    """Factory for creating IndigenousUser instances."""
+
+    class Meta:
+        model = IndigenousUser
+
+    user = factory.SubFactory(UserFactory)
+    land = factory.SubFactory(LandFactory)
+    full_name = factory.Faker("name")
+    phone = factory.Sequence(lambda n: f"+55{n:011d}"[:20])  # Max 20 chars
+    verification_tier = "PENDING"

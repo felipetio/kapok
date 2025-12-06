@@ -1,5 +1,7 @@
 import uuid
 
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 
@@ -102,3 +104,64 @@ class Community(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class IndigenousUser(models.Model):
+    """
+    Profile for indigenous community members linked to Django User.
+
+    Verification Tiers:
+    - PENDING: Initial state after registration
+    - VERIFIED: Has received min_validators approvals from same Land
+    - INSTITUTIONAL: Directors/Presidents of verified organizations
+    """
+
+    TIER_CHOICES = (
+        ("PENDING", "Pending Verification"),
+        ("VERIFIED", "Verified"),
+        ("INSTITUTIONAL", "Institutional"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="indigenous_profile")
+    land = models.ForeignKey(Land, on_delete=models.PROTECT, related_name="members")
+    verification_tier = models.CharField(max_length=20, choices=TIER_CHOICES, default="PENDING")
+
+    # Profile fields
+    full_name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20, blank=True)
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Indigenous User"
+        verbose_name_plural = "Indigenous Users"
+        indexes = [
+            models.Index(fields=["land", "verification_tier"]),
+        ]
+
+    def __str__(self):
+        return f"{self.full_name} ({self.get_verification_tier_display()})"
+
+    def clean(self):
+        """Validate that land exists and is valid."""
+        if not self.land:
+            raise ValidationError("User must belong to a Land.")
+
+    def can_vouch(self):
+        """Check if user can vouch for others."""
+        return self.verification_tier in ["VERIFIED", "INSTITUTIONAL"]
+
+    def promote_to_verified(self):
+        """Promote user to VERIFIED tier."""
+        if self.verification_tier == "PENDING":
+            self.verification_tier = "VERIFIED"
+            self.save(update_fields=["verification_tier", "updated_at"])
+
+    def promote_to_institutional(self):
+        """Promote user to INSTITUTIONAL tier."""
+        if self.verification_tier == "VERIFIED":
+            self.verification_tier = "INSTITUTIONAL"
+            self.save(update_fields=["verification_tier", "updated_at"])
