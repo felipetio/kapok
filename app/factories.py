@@ -5,7 +5,19 @@ from django.contrib.auth.models import User
 import factory
 from factory.django import DjangoModelFactory
 
-from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
+from app.models import (
+    Biome,
+    Community,
+    Country,
+    IndigenousUser,
+    Land,
+    Membership,
+    Municipality,
+    Organization,
+    State,
+    Vouching,
+    VouchingConfig,
+)
 
 
 class CountryFactory(DjangoModelFactory):
@@ -132,3 +144,42 @@ class VouchingFactory(DjangoModelFactory):
     validator = factory.SubFactory(IndigenousUserFactory, verification_tier="VERIFIED")
     status = "PENDING"
     message = factory.Faker("sentence")
+
+
+class OrganizationFactory(DjangoModelFactory):
+    """Factory for creating Organization instances."""
+
+    class Meta:
+        model = Organization
+
+    name = factory.Faker("company")
+    slug = factory.Faker("slug")
+    type = factory.Iterator(["ASSOCIATION", "FEDERATION", "COOPERATIVE", "OTHER"])
+    status = "ACTIVE"
+    description = factory.Faker("text", max_nb_chars=200)
+    website = factory.Faker("url")
+    email = factory.Faker("email")
+    phone = factory.Sequence(lambda n: f"+55{n:011d}"[:20])
+    registration_number = factory.Faker("uuid4")
+    created_by = factory.SubFactory(IndigenousUserFactory, verification_tier="VERIFIED")
+
+    @factory.post_generation
+    def lands(self, create, extracted, **kwargs):
+        """Handle many-to-many relationship for lands."""
+        if not create:
+            return
+
+        if extracted:
+            for land in extracted:
+                self.lands.add(land)
+
+
+class MembershipFactory(DjangoModelFactory):
+    """Factory for creating Membership instances."""
+
+    class Meta:
+        model = Membership
+
+    organization = factory.SubFactory(OrganizationFactory)
+    user = factory.SubFactory(IndigenousUserFactory, verification_tier="VERIFIED")
+    role = "MEMBER"

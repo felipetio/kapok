@@ -1,7 +1,19 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
+from .models import (
+    Biome,
+    Community,
+    Country,
+    IndigenousUser,
+    Land,
+    Membership,
+    Municipality,
+    Organization,
+    State,
+    Vouching,
+    VouchingConfig,
+)
 
 
 @admin.register(Country)
@@ -143,3 +155,41 @@ class VouchingAdmin(admin.ModelAdmin):
     @admin.display(description="Validator")
     def validator_name(self, obj):
         return obj.validator.full_name
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ("name", "type", "status", "created_by_name", "members_count", "created_at")
+    list_filter = ("type", "status", "created_at")
+    search_fields = ("name", "slug", "email", "registration_number")
+    readonly_fields = ("slug", "created_at", "updated_at")
+    autocomplete_fields = ("lands",)
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Basic Information", {"fields": ("name", "slug", "type", "status")}),
+        ("Details", {"fields": ("description", "lands")}),
+        ("Contact", {"fields": ("email", "phone", "website", "registration_number")}),
+        ("Metadata", {"fields": ("created_by", "created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="Created By")
+    def created_by_name(self, obj):
+        return obj.created_by.full_name
+
+    @admin.display(description="Members")
+    def members_count(self, obj):
+        return obj.memberships.count()
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ("user_name", "organization", "role", "joined_at")
+    list_filter = ("role", "organization", "joined_at")
+    search_fields = ("user__full_name", "organization__name")
+    readonly_fields = ("joined_at", "updated_at")
+    ordering = ("-joined_at",)
+
+    @admin.display(description="Member")
+    def user_name(self, obj):
+        return obj.user.full_name
