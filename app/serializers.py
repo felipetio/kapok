@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State
+from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -206,3 +206,78 @@ class IndigenousUserSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "verification_tier", "created_at", "updated_at"]
+
+
+class VouchingConfigSerializer(serializers.ModelSerializer):
+    """Serializer for VouchingConfig."""
+
+    land = LandSerializer(read_only=True)
+
+    class Meta:
+        model = VouchingConfig
+        fields = [
+            "id",
+            "land",
+            "min_validators",
+            "rejection_cooldown_days",
+            "vouching_request_expiry_days",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class VouchingSerializer(serializers.ModelSerializer):
+    """Serializer for Vouching requests."""
+
+    requester = IndigenousUserSerializer(read_only=True)
+    validator = IndigenousUserSerializer(read_only=True)
+    validator_id = serializers.PrimaryKeyRelatedField(
+        queryset=IndigenousUser.objects.all(), source="validator", write_only=True
+    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = Vouching
+        fields = [
+            "id",
+            "requester",
+            "validator",
+            "validator_id",
+            "status",
+            "status_display",
+            "message",
+            "validator_response",
+            "created_at",
+            "updated_at",
+            "responded_at",
+        ]
+        read_only_fields = ["id", "status", "validator_response", "created_at", "updated_at", "responded_at"]
+
+    def validate(self, attrs):
+        """Validate vouching constraints."""
+        requester = self.context["request"].user.indigenous_profile
+        validator = attrs["validator"]
+
+        if requester == validator:
+            raise ValidationError({"validator_id": "You cannot request vouching from yourself."})
+
+        if requester.land != validator.land:
+            raise ValidationError({"validator_id": "Validator must be from the same land."})
+
+        if not validator.can_vouch():
+            raise ValidationError({"validator_id": "Validator must be VERIFIED or INSTITUTIONAL."})
+
+        return attrs
+
+    def create(self, validated_data):
+        """Create vouching request with requester from context."""
+        validated_data["requester"] = self.context["request"].user.indigenous_profile
+        return super().create(validated_data)
+
+
+class VouchingResponseSerializer(serializers.Serializer):
+    """Serializer for responding to vouching requests."""
+
+    approve = serializers.BooleanField(required=True)
+    response_message = serializers.CharField(required=False, allow_blank=True, default="")

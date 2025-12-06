@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 import factory
 from factory.django import DjangoModelFactory
 
-from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State
+from app.models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
 
 
 class CountryFactory(DjangoModelFactory):
@@ -108,3 +108,27 @@ class IndigenousUserFactory(DjangoModelFactory):
     full_name = factory.Faker("name")
     phone = factory.Sequence(lambda n: f"+55{n:011d}"[:20])  # Max 20 chars
     verification_tier = "PENDING"
+
+
+class VouchingConfigFactory(DjangoModelFactory):
+    """Factory for creating VouchingConfig instances."""
+
+    class Meta:
+        model = VouchingConfig
+
+    land = factory.SubFactory(LandFactory)
+    min_validators = 2
+    rejection_cooldown_days = 30
+    vouching_request_expiry_days = 30
+
+
+class VouchingFactory(DjangoModelFactory):
+    """Factory for creating Vouching instances."""
+
+    class Meta:
+        model = Vouching
+
+    requester = factory.SubFactory(IndigenousUserFactory, verification_tier="PENDING")
+    validator = factory.SubFactory(IndigenousUserFactory, verification_tier="VERIFIED")
+    status = "PENDING"
+    message = factory.Faker("sentence")

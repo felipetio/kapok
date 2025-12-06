@@ -6,7 +6,14 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from app.viewsets import CommunityViewSet, LandViewSet, UserProfileViewSet, UserRegistrationViewSet
+from app.viewsets import (
+    CommunityViewSet,
+    LandViewSet,
+    UserProfileViewSet,
+    UserRegistrationViewSet,
+    VouchingConfigViewSet,
+    VouchingViewSet,
+)
 
 # API Router
 router = DefaultRouter()
@@ -14,6 +21,8 @@ router.register(r"lands", LandViewSet, basename="land")
 router.register(r"communities", CommunityViewSet, basename="community")
 router.register(r"auth/register", UserRegistrationViewSet, basename="register")
 router.register(r"users", UserProfileViewSet, basename="user")
+router.register(r"vouching", VouchingViewSet, basename="vouching")
+router.register(r"vouching-config", VouchingConfigViewSet, basename="vouching-config")
 
 urlpatterns = [
     path("", include("app.urls")),

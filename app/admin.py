@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Biome, Community, Country, IndigenousUser, Land, Municipality, State
+from .models import Biome, Community, Country, IndigenousUser, Land, Municipality, State, Vouching, VouchingConfig
 
 
 @admin.register(Country)
@@ -119,3 +119,27 @@ class IndigenousUserAdmin(admin.ModelAdmin):
     @admin.display(description="Email")
     def email(self, obj):
         return obj.user.email
+
+
+@admin.register(VouchingConfig)
+class VouchingConfigAdmin(admin.ModelAdmin):
+    list_display = ("land", "min_validators", "rejection_cooldown_days", "vouching_request_expiry_days")
+    search_fields = ("land__name",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(Vouching)
+class VouchingAdmin(admin.ModelAdmin):
+    list_display = ("requester_name", "validator_name", "status", "created_at", "responded_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("requester__full_name", "validator__full_name")
+    readonly_fields = ("created_at", "updated_at", "responded_at")
+    ordering = ("-created_at",)
+
+    @admin.display(description="Requester")
+    def requester_name(self, obj):
+        return obj.requester.full_name
+
+    @admin.display(description="Validator")
+    def validator_name(self, obj):
+        return obj.validator.full_name
