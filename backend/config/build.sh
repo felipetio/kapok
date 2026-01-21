@@ -12,10 +12,6 @@ npm run build
 # Return to backend
 cd ../backend
 
-# Apply database migrations
-echo "Applying database migrations..."
-uv run python manage.py migrate --noinput
-
 # Collect static files for the Django application
 echo "Collecting static files..."
 uv run python manage.py collectstatic --noinput
