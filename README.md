@@ -1,53 +1,74 @@
 # Kapok
 
-Django app for managing Brazilian indigenous land data.
+Monorepo for Kapok: Django backend + React frontend for managing Brazilian indigenous land data.
+
+## Project Structure
+
+```
+kapok/
+├── backend/          # Django REST API
+│   ├── app/          # Django app (models, views, etc.)
+│   ├── config/       # Django settings
+│   └── docs/         # Backend documentation
+├── frontend/         # React (Vite + TypeScript)
+│   ├── src/          # React components
+│   └── dist/         # Production build
+└── docker-compose.yml
+```
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-uv sync
-
 # Start database services
 docker compose up -d
 
-# Run migrations and load data
+# Backend setup
+cd backend
+uv sync
+cp .env.example .env
 uv run python manage.py migrate
 uv run python manage.py loaddata fixtures.json
 
-# Start the server
-uv run python manage.py runserver
+# Frontend setup
+cd ../frontend
+npm install
 ```
-
-Visit http://localhost:8000/admin
-
-Default login: `admin` / `admin`
-
-## What's Inside
-
-- 1 Country (Brazil)
-- 27 States
-- 7 Biomes
-- Land tracking with categories (DI, PI, RI, TI)
-
-## Tech Stack
-
-- Python 3.13
-- Django 5.2
-- PostgreSQL 16
-- Redis 7
 
 ## Development
 
+**Terminal 1 - Backend (port 8000):**
 ```bash
-# Tests
-uv run pytest
-
-# Code quality
-uv run black .
-uv run isort .
-uv run flake8
+cd backend
+uv run python manage.py runserver
 ```
+
+**Terminal 2 - Frontend (port 5173):**
+```bash
+cd frontend
+npm run dev
+```
+
+Access the app at http://localhost:3000 (Vite proxies /api to Django)
+
+Django Admin: http://localhost:8000/admin (admin / admin)
+
+## Testing
+
+```bash
+# Backend tests
+cd backend && uv run pytest
+
+# Frontend build
+cd frontend && npm run build
+```
+
+## Tech Stack
+
+**Backend:**
+- Python 3.13, Django 5.2, PostgreSQL 16, Redis 7
+
+**Frontend:**
+- React 18, Vite, TypeScript
 
 ## License
 

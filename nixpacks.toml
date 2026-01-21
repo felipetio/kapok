@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "python313", "gcc"]
+
+[phases.install]
+cmds = [
+    "cd frontend && npm ci",
+    "cd backend && pip install uv && uv sync"
+]
+
+[phases.build]
+cmds = [
+    "cd frontend && npm run build",
+    "cd backend && uv run python manage.py collectstatic --noinput"
+]
+
+[start]
+cmd = "cd backend && uv run python manage.py migrate --noinput && uv run uvicorn config.asgi:application --host 0.0.0.0 --port ${PORT:-8000}"

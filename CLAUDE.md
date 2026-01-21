@@ -4,7 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kapok is a Django REST API application for managing and tracking indigenous land data, including countries, states, municipalities, biomes, and indigenous territories. The project focuses on Brazilian indigenous territories with integration to external data sources (ISA - Instituto Socioambiental).
+Kapok is a monorepo with a Django REST API backend and React (Vite + TypeScript) frontend for managing and tracking indigenous land data, including countries, states, municipalities, biomes, and indigenous territories. The project focuses on Brazilian indigenous territories with integration to external data sources (ISA - Instituto Socioambiental).
+
+## Project Structure
+
+```
+kapok/
+├── backend/           # Django REST API
+│   ├── app/           # Django app (models, views, serializers, tests)
+│   ├── config/        # Django settings and URL configuration
+│   ├── docs/          # Backend documentation
+│   └── pyproject.toml # Python dependencies (uv)
+├── frontend/          # React application
+│   ├── src/           # React components
+│   ├── vite.config.ts # Vite config with /api proxy
+│   └── package.json   # Node dependencies
+└── docker-compose.yml # PostgreSQL + Redis services
+```
 
 ## 🚨 Critical Rules
 
@@ -24,9 +40,9 @@ Kapok is a Django REST API application for managing and tracking indigenous land
 
 ## Documentation
 
-Detailed documentation is available in the `docs/` directory:
+Detailed documentation is available in the `backend/docs/` directory:
 
-- **[Backend Conventions](docs/CONVENTIONS_BACKEND.md)** - Django/Python patterns, model conventions, API design, testing strategies, and database best practices
+- **[Backend Conventions](backend/docs/CONVENTIONS_BACKEND.md)** - Django/Python patterns, model conventions, API design, testing strategies, and database best practices
 
 Refer to these documents when you need detailed information about specific aspects of the codebase.
 
@@ -35,47 +51,64 @@ Refer to these documents when you need detailed information about specific aspec
 ### Most Used Commands
 
 ```bash
-# Testing
+# Backend Testing (run from backend/)
+cd backend
 uv run pytest                          # Run all tests
 uv run pytest app/tests/test_*.py      # Run specific test file
 uv run pytest -k test_name             # Run specific test by name
 uv run pytest --cov=app                # Run with coverage report
 
-# Linting & Formatting
+# Backend Linting & Formatting (run from backend/)
+cd backend
 uv run ruff check .                    # Check for linting issues
 uv run ruff format .                   # Format Python code
 uv run ruff check --fix .              # Auto-fix linting issues
-uv run pre-commit run                  # Run all pre-commit hooks
-uv run pre-commit run --all-files      # Run on entire codebase
 
-# Development Server
+# Pre-commit (run from root)
+pre-commit run                         # Run all pre-commit hooks
+pre-commit run --all-files             # Run on entire codebase
+
+# Backend Development Server (run from backend/)
+cd backend
 uv run python manage.py runserver      # Django server (port 8000)
 
-# Django Shell
+# Frontend Development Server (run from frontend/)
+cd frontend
+npm run dev                            # Vite dev server (port 5173)
+
+# Django Shell (run from backend/)
+cd backend
 uv run python manage.py shell_plus     # Interactive shell with models loaded
 ```
 
 ### Setup & Build Commands
 
 ```bash
-# Initial Setup
+# Docker Services (run from root)
+docker-compose up -d            # Start PostgreSQL and Redis
+docker-compose down             # Stop services
+docker-compose logs -f          # View logs
+
+# Backend Initial Setup (run from backend/)
+cd backend
 uv sync                         # Install Python dependencies
 cp .env.example .env           # Create environment file
 # Edit .env to set SECRET_KEY, DATABASE_URL, and REDIS_URL
 
-# Database Operations
+# Backend Database Operations
 uv run python manage.py migrate        # Run database migrations
 uv run python manage.py makemigrations # Create new migrations
 uv run python manage.py loaddata fixtures.json  # Load sample data
 uv run python manage.py createsuperuser         # Create admin user
 
-# Data Management
+# Backend Data Management
 uv run python manage.py load_isa_data  # Import ISA data
 
-# Docker Services
-docker-compose up -d            # Start PostgreSQL and Redis
-docker-compose down             # Stop services
-docker-compose logs -f          # View logs
+# Frontend Setup (run from frontend/)
+cd frontend
+npm install                     # Install Node dependencies
+npm run build                   # Build for production
+npm run preview                 # Preview production build
 ```
 
 ## Python Language Features
@@ -92,25 +125,37 @@ We use Python 3.10+. Take advantage of modern features:
 ### IF modifying Python files:
 
 ```
-1. Check/write tests → uv run pytest app/tests/test_*.py
-2. Make code changes
-3. Run tests → uv run pytest
-4. Format & lint → uv run ruff format . && uv run ruff check --fix .
-5. Validate → uv run pre-commit run
-6. Commit atomically
+1. cd backend
+2. Check/write tests → uv run pytest app/tests/test_*.py
+3. Make code changes
+4. Run tests → uv run pytest
+5. Format & lint → uv run ruff format . && uv run ruff check --fix .
+6. Validate → cd .. && pre-commit run
+7. Commit atomically
 ```
 
 ### IF modifying models:
 
 ```
-1. Update model in app/models.py
-2. Create migration → uv run python manage.py makemigrations
-3. Review migration file
-4. Apply migration → uv run python manage.py migrate
-5. Update tests
-6. Run tests → uv run pytest
-7. Format & lint → uv run ruff format . && uv run ruff check --fix .
-8. Commit atomically
+1. cd backend
+2. Update model in app/models.py
+3. Create migration → uv run python manage.py makemigrations
+4. Review migration file
+5. Apply migration → uv run python manage.py migrate
+6. Update tests
+7. Run tests → uv run pytest
+8. Format & lint → uv run ruff format . && uv run ruff check --fix .
+9. Commit atomically
+```
+
+### IF modifying frontend:
+
+```
+1. cd frontend
+2. Make code changes
+3. Run type check → npm run build (includes tsc)
+4. Test in browser → npm run dev
+5. Commit atomically
 ```
 
 ### IF multiple unrelated changes exist:
@@ -127,15 +172,17 @@ We use Python 3.10+. Take advantage of modern features:
 
 ## Quick Architecture Reference
 
-For detailed architecture information, see [docs/CONVENTIONS_BACKEND.md](docs/CONVENTIONS_BACKEND.md).
+For detailed architecture information, see [backend/docs/CONVENTIONS_BACKEND.md](backend/docs/CONVENTIONS_BACKEND.md).
 
 **Key Points:**
 
-- **Backend**: Django REST Framework API
+- **Backend**: Django REST Framework API (in `backend/`)
+- **Frontend**: React 18 + Vite + TypeScript (in `frontend/`)
 - **Database**: PostgreSQL with UUID primary keys
 - **Cache**: Redis for caching
 - **Admin**: Customized Django admin with external links and computed fields
 - **External Integration**: ISA (Instituto Socioambiental) data import
+- **Dev Proxy**: Vite proxies /api requests to Django at localhost:8000
 
 **Models Hierarchy:**
 
@@ -159,15 +206,15 @@ Community ←→ Land (many-to-many)
 
 ## Testing
 
-For comprehensive testing guidelines, see [docs/CONVENTIONS_BACKEND.md](docs/CONVENTIONS_BACKEND.md).
+For comprehensive testing guidelines, see [backend/docs/CONVENTIONS_BACKEND.md](backend/docs/CONVENTIONS_BACKEND.md).
 
 **Key Requirements:**
 
 - Tests must pass 100% - no exceptions
-- Use pytest for Python tests
+- Use pytest for Python tests (run from `backend/`)
 - Use factory-boy for test data creation
-- Reuse database between test runs for performance (configured in pytest.ini)
-- Use fixtures from `app/tests/conftest.py` if available
+- Reuse database between test runs for performance (configured in backend/pytest.ini)
+- Use fixtures from `backend/app/tests/conftest.py` if available
 
 **Quick Examples:**
 
@@ -195,9 +242,9 @@ The project uses a modular settings structure for different environments:
 
 **Settings Modules:**
 
-- `config/settings/base.py` - Shared settings for all environments
-- `config/settings/local.py` - Development settings (includes debug tools)
-- `config/settings/production.py` - Production settings (security-optimized)
+- `backend/config/settings/base.py` - Shared settings for all environments
+- `backend/config/settings/local.py` - Development settings (includes debug tools)
+- `backend/config/settings/production.py` - Production settings (security-optimized)
 
 **Selecting Settings:**
 
@@ -235,7 +282,7 @@ DEBUG=False
 
 ## Code Style & Conventions
 
-For detailed coding standards, see [docs/CONVENTIONS_BACKEND.md](docs/CONVENTIONS_BACKEND.md).
+For detailed coding standards, see [backend/docs/CONVENTIONS_BACKEND.md](backend/docs/CONVENTIONS_BACKEND.md).
 
 **Quick Reference:**
 
@@ -246,7 +293,7 @@ For detailed coding standards, see [docs/CONVENTIONS_BACKEND.md](docs/CONVENTION
 
 ## Django Admin Customization
 
-The admin interface (`app/admin.py`) includes:
+The admin interface (`backend/app/admin.py`) includes:
 
 - Custom list displays with computed fields
 - External link generation for ISA data
@@ -353,15 +400,15 @@ git status && git diff
 git reset
 
 # Commit feature
-git add app/models.py app/migrations/
+git add backend/app/models.py backend/app/migrations/
 git commit -m "feat: add municipality field to Land model"
 
 # Commit API changes
-git add app/serializers.py app/viewsets.py
+git add backend/app/serializers.py backend/app/viewsets.py
 git commit -m "feat: expose municipality in Land API"
 
 # Commit tests
-git add app/tests/
+git add backend/app/tests/
 git commit -m "test: add municipality filtering tests"
 ```
 

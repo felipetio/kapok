@@ -1,6 +1,9 @@
+import os
+
 from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.http import HttpResponse
+from django.urls import include, path, re_path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
@@ -58,3 +61,20 @@ if settings.DEBUG:
         ] + urlpatterns
     except ImportError:
         pass
+
+
+# SPA catch-all: serve frontend index.html for non-API routes in production
+def serve_spa(request):
+    """Serve the React SPA index.html for client-side routing."""
+    index_path = os.path.join(settings.FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path) as f:
+            return HttpResponse(f.read(), content_type="text/html")
+    return HttpResponse("Frontend not built. Run 'npm run build' in frontend/", status=404)
+
+
+# Only add catch-all in production (in dev, Vite handles the frontend)
+if not settings.DEBUG:
+    urlpatterns += [
+        re_path(r"^(?!api/|admin/|static/|mcp).*$", serve_spa, name="spa-catchall"),
+    ]

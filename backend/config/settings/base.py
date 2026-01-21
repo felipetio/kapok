@@ -70,7 +70,10 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            # Include frontend dist for SPA index.html in production
+            os.path.join(BASE_DIR, "..", "frontend", "dist"),
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -124,6 +127,15 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# Frontend build directory (populated by npm run build in frontend/)
+FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend", "dist")
+
+# Include frontend assets in static files if the directory exists
+STATICFILES_DIRS = []
+if os.path.isdir(os.path.join(FRONTEND_DIR, "assets")):
+    STATICFILES_DIRS.append(os.path.join(FRONTEND_DIR, "assets"))
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
